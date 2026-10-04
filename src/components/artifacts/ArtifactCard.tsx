@@ -34,8 +34,14 @@ export default function ArtifactCard({
       {/* Image */}
 
       <div className="relative h-72 overflow-hidden">
-        <Image
-          src={image}
+       <Image
+    src={
+        image &&
+        image.startsWith("http") &&
+        !image.includes("example.com")
+            ? image
+            : "https://images.unsplash.com/photo-1526392060635-9d6019884377"
+    }
           alt={name}
           fill
           className="object-cover transition duration-500 group-hover:scale-110"

@@ -28,7 +28,11 @@ export default function MuseumCard({
       <div className="relative h-64">
 
         <Image
-          src={image}
+          src={
+    image
+        ? image
+        : "https://images.unsplash.com/photo-1526392060635-9d6019884377"
+}
           alt={name}
           fill
           className="object-cover"

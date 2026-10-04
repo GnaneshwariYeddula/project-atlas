@@ -2,25 +2,23 @@ import {
   Landmark,
   Gem,
   Bot,
-  BookOpen,
+  Map,
 } from "lucide-react";
 
 interface Props {
   stats: {
-    savedSites: number;
+    savedItems: number;
     artifacts: number;
-    aiChats: number;
-    bookmarks: number;
+    communityPosts: number;
+    sites: number;
   };
 }
 
-export default function StatsCards({
-  stats,
-}: Props) {
+export default function StatsCards({ stats }: Props) {
   const cards = [
     {
-      title: "Saved Sites",
-      value: stats.savedSites,
+      title: "Saved Items",
+      value: stats.savedItems,
       icon: Landmark,
     },
     {
@@ -29,23 +27,21 @@ export default function StatsCards({
       icon: Gem,
     },
     {
-      title: "AI Chats",
-      value: stats.aiChats,
+      title: "Community Posts",
+      value: stats.communityPosts,
       icon: Bot,
     },
     {
-      title: "Bookmarks",
-      value: stats.bookmarks,
-      icon: BookOpen,
+      title: "Archaeological Sites",
+      value: stats.sites,
+      icon: Map,
     },
   ];
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-16">
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-
         {cards.map((item) => {
-
           const Icon = item.icon;
 
           return (
@@ -57,19 +53,16 @@ export default function StatsCards({
                 <Icon size={28} />
               </div>
 
-              <h3 className="text-3xl font-black">
+              <h3 className="text-3xl font-black text-stone-900">
                 {item.value}
               </h3>
 
               <p className="mt-2 text-stone-600">
                 {item.title}
               </p>
-
             </div>
           );
-
         })}
-
       </div>
     </section>
   );

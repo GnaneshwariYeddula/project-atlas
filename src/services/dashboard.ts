@@ -7,12 +7,19 @@ export interface DashboardData {
   totalCivilizations: number;
   totalHistoricalFigures: number;
   totalHistoricalEvents: number;
+
+  // Personal data
   totalFavorites: number;
   totalCommunityPosts: number;
 }
 
-export const getDashboardStats = async () => {
-  const response = await api.get("/dashboard");
+export interface DashboardResponse {
+  success: boolean;
+  dashboard: DashboardData;
+}
+
+export const getDashboardStats = async (): Promise<DashboardResponse> => {
+  const response = await api.get<DashboardResponse>("/dashboard");
 
   return response.data;
 };

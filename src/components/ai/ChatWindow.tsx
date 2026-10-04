@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import {
   Bot,
   User,
@@ -9,11 +14,20 @@ import {
   Loader2,
 } from "lucide-react";
 
+import MarkdownMessage from "./MarkdownMessage";
 import { chatWithAI } from "@/services/ai";
 
 interface Message {
+  id: string;
   sender: "user" | "bot";
   text: string;
+  streaming?: boolean;
+}
+
+function createMessageId() {
+  return `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}`;
 }
 
 export default function ChatWindow() {
@@ -23,203 +37,314 @@ export default function ChatWindow() {
 
   const [messages, setMessages] = useState<Message[]>([
     {
+      id: createMessageId(),
       sender: "bot",
       text:
-        "👋 Welcome! I'm your AI Archaeology Assistant. Ask me anything about civilizations, artifacts, historical events, or archaeological discoveries.",
+        "👋 Welcome! I'm your Atlas AI Archaeology Assistant. Ask me about archaeological sites, civilizations, artifacts, historical events, museums, or archaeological discoveries.",
     },
   ]);
 
+  const abortControllerRef =
+    useRef<AbortController | null>(null);
+
+  const messagesEndRef =
+    useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   async function sendMessage() {
-    if (!message.trim() || loading) return;
+    const userMessage = message.trim();
 
-    const userMessage = message;
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        sender: "user",
-        text: userMessage,
-      },
-    ]);
+    if (!userMessage || loading) {
+      return;
+    }
 
     setMessage("");
 
+    const userMessageId = createMessageId();
+    const botMessageId = createMessageId();
+
+    setMessages((previous) => [
+      ...previous,
+
+      {
+        id: userMessageId,
+        sender: "user",
+        text: userMessage,
+      },
+
+      {
+        id: botMessageId,
+        sender: "bot",
+        text: "",
+        streaming: true,
+      },
+    ]);
+
     setLoading(true);
 
+    const controller = new AbortController();
+
+    abortControllerRef.current = controller;
+
     try {
-      const response = await chatWithAI(userMessage);
-
-      setMessages((prev) => [
-        ...prev,
+      await chatWithAI(
+        userMessage,
         {
-          sender: "bot",
-          text:
-            response.reply ??
-            "Sorry, I couldn't generate a response.",
+          onChunk: (text) => {
+            setMessages((previous) =>
+              previous.map((item) =>
+                item.id === botMessageId
+                  ? {
+                      ...item,
+                      text: item.text + text,
+                      streaming: true,
+                    }
+                  : item
+              )
+            );
+          },
+
+          onComplete: () => {
+            setMessages((previous) =>
+              previous.map((item) =>
+                item.id === botMessageId
+                  ? {
+                      ...item,
+                      streaming: false,
+                    }
+                  : item
+              )
+            );
+          },
         },
-      ]);
+        controller.signal
+      );
     } catch (error) {
-      console.error(error);
+      if (
+        error instanceof DOMException &&
+        error.name === "AbortError"
+      ) {
+        return;
+      }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: "bot",
-          text:
-            "Something went wrong while contacting the AI service.",
-        },
-      ]);
+      console.error("Atlas AI error:", error);
+
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while contacting the AI service.";
+
+      setMessages((previous) =>
+        previous.map((item) =>
+          item.id === botMessageId
+            ? {
+                ...item,
+                text:
+                  item.text ||
+                  `Sorry, I couldn't complete that request.\n\n${errorMessage}`,
+                streaming: false,
+              }
+            : item
+        )
+      );
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
+    }
+  }
+
+  function handleKeyDown(
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
     }
   }
 
   return (
-    <section className="bg-white py-24">
-      <div className="mx-auto max-w-6xl px-6">
+    <section className="bg-white py-16 sm:py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-2xl">
 
           {/* Header */}
 
-          <div className="flex items-center justify-between border-b border-stone-200 bg-slate-950 px-8 py-5">
+          <div className="flex items-center justify-between border-b border-stone-200 bg-slate-950 px-5 py-5 sm:px-8">
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
 
-              <div className="rounded-2xl bg-indigo-600 p-3">
-
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 sm:h-12 sm:w-12">
                 <Bot
                   className="text-white"
-                  size={28}
+                  size={25}
                 />
-
               </div>
 
               <div>
-
-                <h2 className="text-xl font-bold text-white">
-                  AI Archaeology Assistant
+                <h2 className="text-base font-bold text-white sm:text-xl">
+                  Atlas AI Assistant
                 </h2>
 
-                <p className="text-sm text-slate-400">
-                  Powered by Gemini AI
+                <p className="text-xs text-slate-400 sm:text-sm">
+                  Archaeology & History Assistant
                 </p>
-
               </div>
 
             </div>
 
             <Sparkles
               className="text-yellow-400"
-              size={28}
+              size={22}
             />
 
           </div>
 
           {/* Messages */}
 
-          <div className="h-[500px] space-y-6 overflow-y-auto bg-stone-50 p-8">
+          <div className="h-[500px] overflow-y-auto bg-stone-50 px-4 py-6 sm:px-8 sm:py-8">
 
-            {messages.map((msg, index) => (
+            <div className="space-y-7">
 
-              <div
-                key={index}
-                className={`flex ${
-                  msg.sender === "user"
-                    ? "justify-end"
-                    : "justify-start"
-                }`}
-              >
-
+              {messages.map((msg) => (
                 <div
-                  className={`flex max-w-3xl gap-4 ${
+                  key={msg.id}
+                  className={`flex ${
                     msg.sender === "user"
-                      ? "flex-row-reverse"
-                      : ""
+                      ? "justify-end"
+                      : "justify-start"
                   }`}
                 >
 
                   <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-full ${
-                      msg.sender === "bot"
-                        ? "bg-indigo-600 text-white"
-                        : "bg-slate-900 text-white"
+                    className={`flex max-w-4xl gap-3 sm:gap-4 ${
+                      msg.sender === "user"
+                        ? "flex-row-reverse"
+                        : ""
                     }`}
                   >
 
-                    {msg.sender === "bot" ? (
-                      <Bot size={22} />
-                    ) : (
-                      <User size={22} />
-                    )}
+                    {/* Avatar */}
 
-                  </div>
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-11 sm:w-11 ${
+                        msg.sender === "bot"
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-900 text-white"
+                      }`}
+                    >
+                      {msg.sender === "bot" ? (
+                        <Bot size={20} />
+                      ) : (
+                        <User size={20} />
+                      )}
+                    </div>
 
-                  <div
-                    className={`rounded-3xl px-6 py-5 leading-7 shadow ${
-                      msg.sender === "bot"
-                        ? "bg-white text-stone-700"
-                        : "bg-indigo-700 text-white"
-                    }`}
-                  >
+                    {/* Message */}
 
-                    {msg.text}
+                    <div
+                      className={`min-w-0 rounded-3xl px-5 py-4 shadow-sm sm:px-6 sm:py-5 ${
+                        msg.sender === "bot"
+                          ? "bg-white text-stone-700"
+                          : "bg-indigo-700 text-white"
+                      }`}
+                    >
+
+                      {msg.sender === "bot" ? (
+                        msg.text ? (
+                          <MarkdownMessage
+                            content={msg.text}
+                          />
+                        ) : (
+                          <div className="flex items-center">
+                            <Loader2
+                              size={18}
+                              className="animate-spin text-indigo-600"
+                              aria-label="Responding"
+                            />
+                          </div>
+                        )
+                      ) : (
+                        <p className="whitespace-pre-wrap leading-7">
+                          {msg.text}
+                        </p>
+                      )}
+
+                    </div>
 
                   </div>
 
                 </div>
+              ))}
 
-              </div>
+              <div ref={messagesEndRef} />
 
-            ))}
-
-            {loading && (
-
-              <div className="flex items-center gap-3 text-stone-500">
-
-                <Loader2
-                  className="animate-spin"
-                  size={18}
-                />
-
-                Gemini is thinking...
-
-              </div>
-
-            )}
+            </div>
 
           </div>
 
           {/* Input */}
 
-          <div className="border-t border-stone-200 bg-white p-6">
+          <div className="border-t border-stone-200 bg-white p-4 sm:p-6">
 
-            <div className="flex gap-4">
+            <div className="flex gap-3 sm:gap-4">
 
               <input
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    sendMessage();
-                  }
-                }}
-                placeholder="Ask about civilizations, artifacts, historical events..."
-                className="flex-1 rounded-2xl border border-stone-300 px-6 py-4 outline-none transition focus:border-indigo-600"
+                onChange={(event) =>
+                  setMessage(event.target.value)
+                }
+                onKeyDown={handleKeyDown}
+                disabled={loading}
+                placeholder="Ask Atlas AI..."
+                aria-label="Ask Atlas AI"
+                className="min-w-0 flex-1 rounded-2xl border border-stone-300 bg-white px-4 py-4 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 disabled:bg-stone-50 sm:px-6"
               />
 
               <button
+                type="button"
                 onClick={sendMessage}
-                disabled={loading}
-                className="flex items-center gap-2 rounded-2xl bg-indigo-700 px-8 py-4 font-semibold text-white transition hover:bg-indigo-800 disabled:opacity-50"
+                disabled={
+                  loading || !message.trim()
+                }
+                className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-indigo-700 px-5 py-4 font-semibold text-white transition hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50 sm:px-8"
               >
 
-                <Send size={20} />
+                {loading ? (
+                  <Loader2
+                    size={20}
+                    className="animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Send
+                    size={20}
+                    aria-hidden="true"
+                  />
+                )}
 
-                Send
+                <span className="hidden sm:inline">
+                  Send
+                </span>
 
               </button>
 
             </div>
+
+            <p className="mt-3 text-center text-xs text-stone-400">
+              Atlas AI can make mistakes. Verify important
+              historical information with reliable sources.
+            </p>
 
           </div>
 

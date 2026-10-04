@@ -12,15 +12,69 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/*
+ * Project Atlas uses intentional light and dark sections
+ * inside the application.
+ *
+ * Do NOT automatically switch the entire website based on
+ * the user's operating-system color preference.
+ *
+ * Individual components control their own text/background
+ * colors using Tailwind classes.
+ */
+
+html {
+  background: #ffffff;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  margin: 0;
+  background: #ffffff;
+  color: #171717;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/*
+ * Keep links inheriting the color selected by their component.
+ * This prevents global link styling from breaking buttons,
+ * navigation and cards.
+ */
+
+a {
+  color: inherit;
+}
+
+/*
+ * Images and media should never overflow their containers.
+ */
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/*
+ * Accessible keyboard focus.
+ */
+
+:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 3px;
+}
+
+/*
+ * Respect reduced-motion preferences.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
